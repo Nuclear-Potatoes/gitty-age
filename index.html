@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>GitHub 账号年龄查询 · Gitty Age</title>
+<meta name="description" content="输入 GitHub 用户名，查询账号注册时间和账号年龄。纯静态、无后端、不需要 Token。" />
+<style>
+  :root {
+    --bg: #0d1117;
+    --card: #161b22;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #2f81f7;
+    --green: #3fb950;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+      "Microsoft YaHei", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .wrap { width: 100%; max-width: 480px; }
+  h1 {
+    font-size: 22px;
+    font-weight: 600;
+    text-align: center;
+    margin-bottom: 4px;
+  }
+  h1 .octo { color: var(--accent); }
+  .subtitle {
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+    margin-bottom: 24px;
+  }
+  .search {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+  .search input {
+    flex: 1;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 15px;
+    padding: 11px 14px;
+    outline: none;
+    transition: border-color .15s;
+  }
+  .search input:focus { border-color: var(--accent); }
+  .search button {
+    background: var(--accent);
+    border: none;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 15px;
+    font-weight: 500;
+    padding: 0 20px;
+    cursor: pointer;
+    transition: opacity .15s;
+    white-space: nowrap;
+  }
+  .search button:hover { opacity: .9; }
+  .search button:disabled { opacity: .5; cursor: not-allowed; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    display: none;
+  }
+  .card.show { display: block; animation: fade .25s ease; }
+  @keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+  .profile {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+  .profile img {
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+  }
+  .profile .name { font-size: 17px; font-weight: 600; }
+  .profile .login { color: var(--muted); font-size: 13px; }
+  .profile .login a { color: var(--accent); text-decoration: none; }
+  .profile .login a:hover { text-decoration: underline; }
+
+  .age-hero {
+    text-align: center;
+    padding: 16px 0;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 16px;
+  }
+  .age-hero .num { font-size: 28px; font-weight: 700; color: var(--green); }
+  .age-hero .label { color: var(--muted); font-size: 12px; margin-top: 2px; }
+
+  .rows { display: grid; gap: 10px; }
+  .row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+  }
+  .row .k { color: var(--muted); }
+  .row .v { font-weight: 500; }
+
+  .msg {
+    text-align: center;
+    color: var(--muted);
+    font-size: 14px;
+    padding: 12px;
+    display: none;
+  }
+  .msg.show { display: block; }
+  .msg.err { color: #f85149; }
+
+  footer {
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+    margin-top: 20px;
+    line-height: 1.6;
+  }
+  footer a { color: var(--muted); }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1><span class="octo">◐</span> GitHub 账号年龄查询</h1>
+    <p class="subtitle">输入用户名，查看账号注册了多久 · 纯前端，无需 Token</p>
+
+    <form class="search" id="form">
+      <input id="input" type="text" placeholder="输入 GitHub 用户名，如 torvalds"
+        autocomplete="off" autocapitalize="off" spellcheck="false" />
+      <button type="submit" id="btn">查询</button>
+    </form>
+
+    <div class="msg" id="msg"></div>
+
+    <div class="card" id="card">
+      <div class="profile">
+        <img id="avatar" src="" alt="avatar" />
+        <div>
+          <div class="name" id="pname"></div>
+          <div class="login">@<a id="plogin" href="#" target="_blank" rel="noopener"></a></div>
+        </div>
+      </div>
+
+      <div class="age-hero">
+        <div class="num" id="ageNum">-</div>
+        <div class="label">账号年龄 Account Age</div>
+      </div>
+
+      <div class="rows">
+        <div class="row"><span class="k">注册时间</span><span class="v" id="created">-</span></div>
+        <div class="row"><span class="k">注册天数</span><span class="v" id="days">-</span></div>
+        <div class="row"><span class="k">公开仓库</span><span class="v" id="repos">-</span></div>
+        <div class="row"><span class="k">粉丝数</span><span class="v" id="followers">-</span></div>
+      </div>
+    </div>
+
+    <footer>
+      数据来自 GitHub 公开 API，仅供参考 · 未登录额度为 60 次/小时<br />
+      <a href="https://github.com" target="_blank" rel="noopener">Powered by GitHub API</a>
+    </footer>
+  </div>
+
+<script>
+  const form = document.getElementById('form');
+  const input = document.getElementById('input');
+  const btn = document.getElementById('btn');
+  const card = document.getElementById('card');
+  const msg = document.getElementById('msg');
+
+  function showMsg(text, isErr) {
+    msg.textContent = text;
+    msg.className = 'msg show' + (isErr ? ' err' : '');
+    card.classList.remove('show');
+  }
+  function clearMsg() { msg.className = 'msg'; }
+
+  // 把两个日期差换算成「x 年 x 个月 x 天」
+  function ageBreakdown(from, to) {
+    let years = to.getFullYear() - from.getFullYear();
+    let months = to.getMonth() - from.getMonth();
+    let days = to.getDate() - from.getDate();
+    if (days < 0) {
+      months -= 1;
+      const prevMonth = new Date(to.getFullYear(), to.getMonth(), 0);
+      days += prevMonth.getDate();
+    }
+    if (months < 0) { years -= 1; months += 12; }
+    const parts = [];
+    if (years > 0) parts.push(years + ' 年');
+    if (months > 0) parts.push(months + ' 个月');
+    parts.push(days + ' 天');
+    return parts.join(' ');
+  }
+
+  function fmtDate(d) {
+    return d.getFullYear() + '-' +
+      String(d.getMonth() + 1).padStart(2, '0') + '-' +
+      String(d.getDate()).padStart(2, '0');
+  }
+
+  async function query(username) {
+    btn.disabled = true;
+    btn.textContent = '查询中…';
+    showMsg('正在查询…', false);
+    try {
+      const res = await fetch('https://api.github.com/users/' + encodeURIComponent(username));
+      if (res.status === 404) { showMsg('未找到该用户，请检查用户名是否正确', true); return; }
+      if (res.status === 403) { showMsg('请求过于频繁，已达到每小时 60 次限额，请稍后再试', true); return; }
+      if (!res.ok) { showMsg('查询失败（HTTP ' + res.status + '），请稍后再试', true); return; }
+
+      const u = await res.json();
+      const created = new Date(u.created_at);
+      const now = new Date();
+      const totalDays = Math.floor((now - created) / 86400000);
+
+      document.getElementById('avatar').src = u.avatar_url;
+      document.getElementById('pname').textContent = u.name || u.login;
+      const loginEl = document.getElementById('plogin');
+      loginEl.textContent = u.login;
+      loginEl.href = u.html_url;
+      document.getElementById('ageNum').textContent = ageBreakdown(created, now);
+      document.getElementById('created').textContent = fmtDate(created);
+      document.getElementById('days').textContent = totalDays.toLocaleString() + ' 天';
+      document.getElementById('repos').textContent = u.public_repos.toLocaleString();
+      document.getElementById('followers').textContent = u.followers.toLocaleString();
+
+      clearMsg();
+      card.classList.add('show');
+    } catch (e) {
+      showMsg('网络错误，请检查网络连接后重试', true);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '查询';
+    }
+  }
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    const name = input.value.trim();
+    if (!name) { showMsg('请输入 GitHub 用户名', true); return; }
+    query(name);
+  });
+
+  // 支持 URL 直接带参数：?u=torvalds
+  const preset = new URLSearchParams(location.search).get('u');
+  if (preset) { input.value = preset; query(preset); }
+</script>
+</body>
+</html>
